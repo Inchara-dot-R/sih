@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+
+  <title>BEFORE THE WAVE</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    #map {
+      height: 100%;
+    }
+
+    #panel {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      z-index: 1000;
+      width: 300px;
+      background: rgba(255, 255, 255, 0.96);
+      padding: 18px;
+      border-radius: 12px;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    #title {
+      font-size: 23px;
+      font-weight: bold;
+      margin-bottom: 2px;
+      color: #17202a;
+    }
+
+    #subtitle {
+      font-size: 12px;
+      color: #68707a;
+      margin-bottom: 15px;
+    }
+
+    #status {
+      background: #ffe5e5;
+      color: #c0392b;
+      padding: 8px;
+      border-radius: 6px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .section {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #ddd;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #555;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .value {
+      font-size: 16px;
+      font-weight: bold;
+      color: #222;
+    }
+
+    .critical {
+      color: #c0392b;
+    }
+
+    .safe {
+      color: #168a45;
+    }
+
+    .info {
+      color: #2471a3;
+    }
+
+    #route-button {
+      width: 100%;
+      margin-top: 15px;
+      padding: 11px;
+      border: none;
+      border-radius: 7px;
+      background: #2471a3;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #route-button:hover {
+      background: #1b4f72;
+    }
+
+    .layer {
+      margin-top: 5px;
+    }
+
+    .loading {
+      color: #777;
+      font-style: italic;
+    }
+
+    #disclaimer {
+      margin-top: 14px;
+      font-size: 10px;
+      line-height: 1.4;
+      color: #777;
+    }
+
+    #legend {
+      position: absolute;
+      bottom: 25px;
+      right: 15px;
+      z-index: 1000;
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      font-size: 12px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 4px;
+      margin-right: 7px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 7px;
+    }
+  </style>
+</head>
+
+
+<body>
+
+  <div id="map"></div>
+
+  <div id="panel">
+
+    <div id="title">
+      BEFORE THE WAVE
+    </div>
+
+    <div id="subtitle">
+      Dam-Break Flood Decision Support System
+    </div>
+
+    <div id="status">
+      ● LOADING SCENARIO
+    </div>
+
+    <!-- DAM -->
+    <div class="section">
+      <div class="section-title">Dam Information</div>
+      <div><strong id="dam-name">Loading...</strong></div>
+      <div>Roads: <span id="road-count">-</span></div>
+      <div>Buildings: <span id="building-count">-</span></div>
+    </div>
+
+    <!-- FLOOD -->
+    <div class="section">
+      <div class="section-title">Flood Risk</div>
+      <div>Maximum simulated depth:</div>
+      <div id="max-depth" class="value critical">Loading...</div>
+
+      <div style="margin-top:6px;">Critical flood cells:</div>
+      <div id="critical-cells" class="value critical">Loading...</div>
+    </div>
+
+    <!-- EVACUATION -->
+    <div class="section">
+      <div class="section-title">Evacuation Decision</div>
+
+      <div>Decision:</div>
+      <div id="decision" class="value critical">Loading...</div>
+
+      <div style="margin-top:6px;">Safe corridor:</div>
+      <div id="route-length" class="value safe">Loading...</div>
+
+      <div style="margin-top:6px;">Maximum route depth:</div>
+      <div id="route-depth" class="value safe">Loading...</div>
+
+      <button id="route-button" onclick="showRoute()">
+        SHOW EVACUATION ROUTE
+      </button>
+    </div>
+
+    <!-- LAYERS -->
+    <div class="section">
+      <div class="section-title">Map Layers</div>
+
+      <div class="layer">
+        <input type="checkbox" id="roadsCheck" checked>
+        <label for="roadsCheck">Roads</label>
+      </div>
+
+      <div class="layer">
+        <input type="checkbox" id="buildingsCheck" checked>
+        <label for="buildingsCheck">Buildings</label>
+      </div>
+
+      <div class="layer">
+        <input type="checkbox" id="damCheck" checked>
+        <label for="damCheck">Dam</label>
+      </div>
+
+      <div class="layer">
+        <input type="checkbox" id="routeCheck" checked>
+        <label for="routeCheck">Evacuation route</label>
+      </div>
+
+      <div class="layer">
+        <input type="checkbox" id="floodCheck" checked>
+        <label for="floodCheck">Flood extent</label>
+      </div>
+    </div>
+
+    <div id="disclaimer">
+      Prototype decision-support visualization.
+      Hydraulic results are screening-level and should
+      be validated using an engineering-grade hydraulic
+      model before operational deployment.
+    </div>
+
+  </div>
+
+  <!-- LEGEND -->
+  <div id="legend">
+    <strong>Map Legend</strong>
+
+    <div class="legend-row">
+      <div class="legend-color" style="background:#555555;"></div>
+      Roads
+    </div>
+
+    <div class="legend-row">
+      <div class="legend-color" style="background:#c0392b;"></div>
+      Buildings
+    </div>
+
+    <div class="legend-row">
+      <div class="legend-color" style="background:#00aa44; height:5px;"></div>
+      Safe evacuation route
+    </div>
+
+    <div class="legend-row">
+      <div class="legend-dot" style="background:#ffff66;"></div>
+      Flood: Low
+    </div>
+
+    <div class="legend-row">
+      <div class="legend-dot" style="background:#ffa500;"></div>
+      Flood: Moderate
+    </div>
+
+    <div class="legend-row">
+      <div class="legend-dot" style="background:#ff4500;"></div>
+      Flood: High
+    </div>
+
+    <div class="legend-row">
+      <div class="legend-dot" style="background:#8b0000;"></div>
+      Flood: Critical
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+
+    // ==========================================
+    // CONFIGURATION
+    // ==========================================
+
+    const API_BASE = "http://localhost:8000";
+
+    // ==========================================
+    // MAP
+    // ==========================================
+
+    const map = L.map("map").setView([31.4166, 76.4291], 12);
+
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution: "Tiles &copy; Esri",
+        maxZoom: 19
+      }
+    ).addTo(map);
+
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 19,
+        pane: "shadowPane"
+      }
+    ).addTo(map);
+
+    // ==========================================
+    // LAYER VARIABLES
+    // ==========================================
+
+    let roadsLayer = null;
+    let buildingsLayer = null;
+    let damMarker = null;
+    let routeLayer = null;
+    let floodLayer = null;
+
+    // ==========================================
+    // LOAD DAM
+    // ==========================================
+
+    fetch(`${API_BASE}/api/dam-site`)
+      .then(response => {
+        if (!response.ok) throw new Error("Dam API failed");
+        return response.json();
+      })
+      .then(dam => {
+        console.log("Dam:", dam);
+        document.getElementById("dam-name").textContent = dam.name;
+
+        damMarker = L.marker([dam.lat, dam.lon])
+          .addTo(map)
+          .bindPopup(`<b>${dam.name}</b><br>Dam break simulation site`);
+
+        map.setView([dam.lat, dam.lon], 12);
+      })
+      .catch(error => {
+        console.error(error);
+        document.getElementById("dam-name").textContent = "Backend error";
+      });
+
+    // ==========================================
+    // LOAD ROADS
+    // ==========================================
+
+    fetch(`${API_BASE}/api/layers/roads`)
+      .then(response => {
+        if (!response.ok) throw new Error("Road API failed");
+        return response.json();
+      })
+      .then(geojson => {
+        console.log("Roads:", geojson.features.length);
+        document.getElementById("road-count").textContent = geojson.features.length;
+
+        roadsLayer = L.geoJSON(geojson, {
+          style: { color: "#555555", weight: 2, opacity: 0.7 }
+        }).addTo(map);
+      })
+      .catch(error => console.error("Road error:", error));
+
+    // ==========================================
+    // LOAD BUILDINGS
+    // ==========================================
+
+    fetch(`${API_BASE}/api/layers/buildings`)
+      .then(response => {
+        if (!response.ok) throw new Error("Building API failed");
+        return response.json();
+      })
+      .then(geojson => {
+        console.log("Buildings:", geojson.features.length);
+        document.getElementById("building-count").textContent = geojson.features.length;
+
+        buildingsLayer = L.geoJSON(geojson, {
+          style: { color: "#c0392b", weight: 1, fillOpacity: 0.4 }
+        }).addTo(map);
+      })
+      .catch(error => console.error("Building error:", error));
+
+    // ==========================================
+    // FLOOD SUMMARY
+    // ==========================================
+
+    fetch(`${API_BASE}/api/flood-summary`)
+      .then(response => {
+        if (!response.ok) throw new Error("Flood summary API failed");
+        return response.json();
+      })
+      .then(data => {
+        console.log("Flood summary:", data);
+
+        document.getElementById("max-depth").textContent =
+          `${Number(data.maximum_depth_m).toFixed(2)} m`;
+
+        document.getElementById("critical-cells").textContent =
+          Number(data.critical_cells).toLocaleString();
+
+        if (data.critical_cells > 0) {
+          document.getElementById("status").textContent = "● CRITICAL FLOOD SCENARIO";
+        } else {
+          document.getElementById("status").textContent = "● SAFE";
+        }
+      })
+      .catch(error => {
+        console.error("Flood summary error:", error);
+        document.getElementById("max-depth").textContent = "Unavailable";
+        document.getElementById("critical-cells").textContent = "Unavailable";
+      });
+
+    // ==========================================
+    // LOAD FLOOD EXTENT (NEW)
+    // ==========================================
+
+    function riskColor(risk) {
+      switch (risk) {
+        case 1: return "#ffff66"; // low
+        case 2: return "#ffa500"; // moderate
+        case 3: return "#ff4500"; // high
+        case 4: return "#8b0000"; // critical
+        default: return "#cccccc";
+      }
+    }
+
+    fetch(`${API_BASE}/api/flood-extent`)
+      .then(response => {
+        if (!response.ok) throw new Error("Flood extent API failed");
+        return response.json();
+      })
+      .then(geojson => {
+        console.log("Flood extent cells:", geojson.features.length);
+
+        floodLayer = L.geoJSON(geojson, {
+          pointToLayer: function (feature, latlng) {
+            return L.circleMarker(latlng, {
+              radius: 4,
+              color: riskColor(feature.properties.risk),
+              fillColor: riskColor(feature.properties.risk),
+              fillOpacity: 0.6,
+              stroke: false
+            });
+          },
+          onEachFeature: function (feature, layer) {
+            layer.bindPopup(
+              `Depth: ${feature.properties.depth_m} m<br>Risk level: ${feature.properties.risk}`
+            );
+          }
+        }).addTo(map);
+      })
+      .catch(error => console.error("Flood extent error:", error));
+
+    // ==========================================
+    // FINAL DECISION
+    // ==========================================
+
+    fetch(`${API_BASE}/api/final-decision`)
+      .then(response => {
+        if (!response.ok) throw new Error("Decision API failed");
+        return response.json();
+      })
+      .then(data => {
+        console.log("Final decision:", data);
+
+        let decision =
+          data.recommended_action ||
+          data.recommendation ||
+          data.overall_status ||
+          data.decision;
+
+        if (typeof decision === "object") {
+          decision = JSON.stringify(decision);
+        }
+
+        if (!decision) {
+          decision = "EVACUATION RECOMMENDED";
+        }
+
+        document.getElementById("decision").textContent = decision;
+      })
+      .catch(error => {
+        console.error("Decision error:", error);
+        document.getElementById("decision").textContent = "Unavailable";
+      });
+
+    // ==========================================
+    // LOAD EVACUATION ROUTE INFORMATION
+    // ==========================================
+
+    fetch(`${API_BASE}/api/evacuation-route`)
+      .then(response => {
+        if (!response.ok) throw new Error("Route API failed");
+        return response.json();
+      })
+      .then(data => {
+        console.log("Route:", data);
+
+        const routeLength =
+          data.safe_route_length_km ??
+          data.route_length_km ??
+          data.route_length;
+
+        const routeDepth =
+          data.maximum_safe_route_depth_m ??
+          data.maximum_route_depth_m ??
+          data.max_route_depth_m ??
+          data.maximum_depth_m;
+
+        if (routeLength !== undefined) {
+          document.getElementById("route-length").textContent =
+            `${Number(routeLength).toFixed(2)} km`;
+        }
+
+        if (routeDepth !== undefined) {
+          document.getElementById("route-depth").textContent =
+            `${Number(routeDepth).toFixed(2)} m`;
+        }
+      })
+      .catch(error => {
+        console.error("Route information error:", error);
+        document.getElementById("route-length").textContent = "Unavailable";
+        document.getElementById("route-depth").textContent = "Unavailable";
+      });
+
+    // ==========================================
+    // SHOW EVACUATION ROUTE
+    // ==========================================
+
+    function showRoute() {
+      fetch(`${API_BASE}/api/evacuation-route`)
+        .then(response => {
+          if (!response.ok) throw new Error("Route API unavailable");
+          return response.json();
+        })
+        .then(data => {
+          console.log("Route data:", data);
+
+          if (!data.route_coordinates || data.route_coordinates.length === 0) {
+            alert("No evacuation route coordinates found.");
+            return;
+          }
+
+          if (routeLayer) {
+            map.removeLayer(routeLayer);
+          }
+
+          const coordinates = data.route_coordinates.map(
+            point => [point[1], point[0]]
+          );
+
+          routeLayer = L.polyline(coordinates, {
+            color: "#00aa44",
+            weight: 6,
+            opacity: 0.9
+          }).addTo(map);
+
+          L.circleMarker(coordinates[0], {
+            radius: 7,
+            color: "#000000",
+            fillColor: "#00aa44",
+            fillOpacity: 1
+          }).addTo(routeLayer._map);
+
+          map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+
+          routeLayer.bindPopup(
+            `<b>BEFORE THE WAVE</b><br>Safe evacuation corridor`
+          );
+        })
+        .catch(error => {
+          console.error("Route error:", error);
+          alert("Unable to load evacuation route.");
+        });
+    }
+
+    // ==========================================
+    // ROAD CHECKBOX
+    // ==========================================
+
+    document.getElementById("roadsCheck").addEventListener("change", function() {
+      if (!roadsLayer) return;
+      if (this.checked) map.addLayer(roadsLayer);
+      else map.removeLayer(roadsLayer);
+    });
+
+    // ==========================================
+    // BUILDING CHECKBOX
+    // ==========================================
+
+    document.getElementById("buildingsCheck").addEventListener("change", function() {
+      if (!buildingsLayer) return;
+      if (this.checked) map.addLayer(buildingsLayer);
+      else map.removeLayer(buildingsLayer);
+    });
+
+    // ==========================================
+    // DAM CHECKBOX
+    // ==========================================
+
+    document.getElementById("damCheck").addEventListener("change", function() {
+      if (!damMarker) return;
+      if (this.checked) map.addLayer(damMarker);
+      else map.removeLayer(damMarker);
+    });
+
+    // ==========================================
+    // ROUTE CHECKBOX
+    // ==========================================
+
+    document.getElementById("routeCheck").addEventListener("change", function() {
+      if (!routeLayer) return;
+      if (this.checked) map.addLayer(routeLayer);
+      else map.removeLayer(routeLayer);
+    });
+
+    // ==========================================
+    // FLOOD CHECKBOX (NEW)
+    // ==========================================
+
+    document.getElementById("floodCheck").addEventListener("change", function() {
+      if (!floodLayer) return;
+      if (this.checked) map.addLayer(floodLayer);
+      else map.removeLayer(floodLayer);
+    });
+
+  </script>
+
+</body>
+</html>
